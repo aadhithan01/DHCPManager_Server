@@ -125,6 +125,9 @@ int main(int argc, char** argv)
             } else if (strcmp(command, "stop") == 0) {
                 printf("Setting v4 event to 'stop'\n");
                 set_dhcp_v4_event("stop");
+            } else if (strcmp(command, "restart") == 0) {
+                printf("Setting v4 event to 'restart'\n");
+                set_dhcp_v4_event("restart");
             } else {
                 printf("Unknown command: %s\n", command);
             }
