@@ -33,6 +33,20 @@ static int set_dhcp_v4_event(const char *value)
     return 0;
 }
 
+/* Helper: set DHCP v6 event property to a string value (e.g., "start") */
+static int set_dhcp_v6_event(const char *value)
+{
+    rbusError_t rc;
+    rc = rbus_setStr(handle, DHCPMGR_SERVERv6_EVENT, value);
+    if (rc != RBUS_ERROR_SUCCESS) {
+        printf("rbus_setStr failed: %d\n", rc);
+        return -1;
+    }
+    printf("Set %s = '%s'\n", DHCPMGR_SERVERv6_EVENT, value);
+    return 0;
+}   
+
+
 /* event handler for subscribed events */
 static void event_handler(rbusHandle_t h, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
 {
@@ -58,22 +72,25 @@ static void event_handler(rbusHandle_t h, rbusEvent_t const* event, rbusEventSub
                 if (s) {
                     printf("State payload: %s\n", s);
                     if (strcmp(s, "Ready") == 0) {
-                        printf("State is Ready -> setting v4 event to 'start'\n");
-                        set_dhcp_v4_event("start");
+                        printf("State is Ready -> we can 'start v6/v4' servers\n");
+//                        set_dhcp_v4_event("start");
+//                        set_dhcp_v6_event("start");
                     }
                 }
             } else {
                 /* No recognized key. If it's the READY event name, set anyway */
                 if (strcmp(event->name, DHCPMGR_SERVER_READY) == 0) {
-                    printf("READY event received (unknown payload) -> setting v4 event to 'start'\n");
-                    set_dhcp_v4_event("start");
+                    pprintf("State is Ready -> we can 'start v6/v4' servers\n");
+//                        set_dhcp_v4_event("start");
+//                        set_dhcp_v6_event("start");
                 }
             }
         } else {
             /* No data; if ready event name matches, set directly */
             if (strcmp(event->name, DHCPMGR_SERVER_READY) == 0) {
-                printf("Received ready notification (no data) -> setting v4 event to 'start'\n");
-                set_dhcp_v4_event("start");
+                printf("State is Ready -> we can 'start v6/v4' servers\n");
+//                        set_dhcp_v4_event("start");
+//                        set_dhcp_v6_event("start");
             }
         }
     }
@@ -111,7 +128,7 @@ int main(int argc, char** argv)
     /* Command-line reader loop */
     printf("Rbus client listening for DHCP server state events...\n");
     while (keepRunning) {
-        printf("Enter command (start/stop/quit): ");
+        printf("Enter command (start/stop/restart) for v4, (startv6/stopv6/restartv6) for v6, or 'quit' to exit:\n");
         if (fgets(command, sizeof(command), stdin) != NULL) {
             /* Remove trailing newline */
             command[strcspn(command, "\n")] = '\0';
@@ -128,6 +145,15 @@ int main(int argc, char** argv)
             } else if (strcmp(command, "restart") == 0) {
                 printf("Setting v4 event to 'restart'\n");
                 set_dhcp_v4_event("restart");
+            } else if (strcmp(command, "startv6") == 0) {
+                printf("Setting v6 event to 'start'\n");
+                set_dhcp_v6_event("start");
+            } else if (strcmp(command, "stopv6") == 0) {
+                printf("Setting v6 event to 'stop'\n");
+                set_dhcp_v6_event("stop");
+            } else if (strcmp(command, "restartv6") == 0) {
+                printf("Setting v6 event to 'restart'\n");
+                set_dhcp_v6_event("restart");
             } else {
                 printf("Unknown command: %s\n", command);
             }

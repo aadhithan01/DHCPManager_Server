@@ -10,10 +10,10 @@ CFLAGS = -Wall -Wextra -I/usr/local/include -I/usr/local/include/cjson -I/usr/in
 LDFLAGS = -L/usr/local/lib -lcjson -lrbus
 
 # Source files
-SRCS = dhcp_server_v4_apis.c sm_DhcpMgr_apis.c sm_DhcpMgr.c dhcpmgr_rbus_apis.c
+SRCS = dhcp_server_v4_apis.c sm_DhcpMgr_apis.c sm_DhcpMgr.c dhcpmgr_rbus_apis.c dhcp_server_v6_apis.c
 
 # Header files
-HDRS = dhcp_server_v4_apis.h sm_DhcpMgr.h dhcpmgr_rbus_apis.h
+HDRS = dhcp_server_v4_apis.h sm_DhcpMgr.h dhcpmgr_rbus_apis.h dhcp_server_v6_apis.h
 
 # Output binary
 TARGET = CcspDHCPMgr

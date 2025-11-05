@@ -1,0 +1,11 @@
+1
+-q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C /var/dnsmasq.conf --dhcp-authoritative --stop-dns-rebind --log-facility=/home/aadhithan/Desktop/aadhi/DHCP_MGR/dnsmasq.log
+Entering dhcpServerStart
+Files are not identical, restarting dnsmasq
+iSystemRes:0
+error = 2 command execute successfully
+Preparing to start dnsmasq
+Adding command line arguments
+Starting dnsmasq process sudo dnsmasq -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C /var/dnsmasq.conf --dhcp-authoritative --stop-dns-rebind --log-facility=/home/aadhithan/Desktop/aadhi/DHCP_MGR/dnsmasq.log 
+iSystemRes:256
+Failed to start the dnsmasq process

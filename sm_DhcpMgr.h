@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "dhcp_server_v4_apis.h"
+#include "dhcp_server_v6_apis.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -119,6 +120,12 @@ typedef struct {
     char Dhcpv6_Start_Addr[MAX_IP_LEN];  // Used only if StateFull is enabled
     char Dhcpv6_End_Addr[MAX_IP_LEN];    // Used only if StateFull is enabled
     IPv6AddrType addrType;               // Global or ULA addresses for clients
+    int  LeaseTime;                      // in seconds
+    int  RenewTime;                      // in seconds
+    int  RebindTime;                     // in seconds
+    int  ValidLifeTime;                  // in seconds
+    int  PreferredLifeTime;              // in seconds
+    int  num_options;                    // Number of custom options
     void *customConfig;                 // Pointer for future custom configurations --> PVD/FQDN etc 
 } DHCPV6Config;
 
@@ -137,7 +144,9 @@ int Construct_dhcp_configurationv4(char *dhcpOptions, char *dnsonly);
 void AllocateDhcpInterfaceConfig(DhcpInterfaceConfig ***ppDhcpCfgs, int LanConfig_count);
 void Add_inf_to_dhcp_config(DhcpPayload *pLanConfig, int numOfLanConfigs, DhcpInterfaceConfig **ppHeadDhcpIf, int pDhcpIfacesCount);
 void dns_only();
+int check_ipv6_received(DhcpPayload *lanConfigs, int LanConfig_count, bool *statefull_enabled, bool *stateless_enabled);
 int EventHandler_MainFSM(DhcpMgr_DispatchEvent event);
+int create_dhcpsv6_config(DhcpPayload *lanConfigs);
 // STUB Struct Ends HERE
 
 #endif
