@@ -16,13 +16,13 @@
 static const char *json_input =
 "{\"num_entries\": 3, \"dhcpPayload\": ["
 "{\"bridgeInfo\": {\"networkBridgeType\": 0, \"userBridgeCategory\": 1, \"alias\": \"br-lan\", \"stpEnable\": 1, \"igdEnable\": 1, \"bridgeLifeTime\": -1, \"bridgeName\": \"brlan0\"},"
-"\"dhcpConfig\": {\"dhcpv4Config\": {\"Dhcpv4_Enable\": true, \"Dhcpv4_Start_Addr\": \"192.168.1.2\", \"Dhcpv4_End_Addr\": \"192.168.1.254\", \"Dhcpv4_Lease_Time\": 86400},"
+"\"dhcpConfig\": {\"dhcpv4Config\": {\"Dhcpv4_Enable\": true, \"Dhcpv4_Start_Addr\": \"192.168.1.2\", \"Dhcpv4_End_Addr\": \"192.168.1.254\", \"Dhcpv4_Lease_Time\": 86400, \"Dhcpv4_Subnet\": \"255.255.255.0\"},"
 "\"dhcpv6Config\": {\"Ipv6Prefix\": \"fd00:1:1::/64\", \"StateFull\": true, \"StateLess\": false, \"Dhcpv6_Start_Addr\": \"fd00:1:1::10\", \"Dhcpv6_End_Addr\": \"fd00:1:1::ffff\", \"addrType\": 1, \"customConfig\": null}}},"
 "{\"bridgeInfo\": {\"networkBridgeType\": 0, \"userBridgeCategory\": 3, \"alias\": \"br-hotspot\", \"stpEnable\": 0, \"igdEnable\": 0, \"bridgeLifeTime\": -1, \"bridgeName\": \"brlan1\"},"
-"\"dhcpConfig\": {\"dhcpv4Config\": {\"Dhcpv4_Enable\": true, \"Dhcpv4_Start_Addr\": \"10.0.0.2\", \"Dhcpv4_End_Addr\": \"10.0.0.200\", \"Dhcpv4_Lease_Time\": 43200},"
+"\"dhcpConfig\": {\"dhcpv4Config\": {\"Dhcpv4_Enable\": true, \"Dhcpv4_Start_Addr\": \"10.0.0.2\", \"Dhcpv4_End_Addr\": \"10.0.0.200\", \"Dhcpv4_Lease_Time\": 43200, \"Dhcpv4_Subnet\": \"255.255.255.0\"},"
 "\"dhcpv6Config\": {\"Ipv6Prefix\": \"2001:db8:100::/64\", \"StateFull\": true, \"StateLess\": false, \"Dhcpv6_Start_Addr\": \"2001:db8:100::20\", \"Dhcpv6_End_Addr\": \"2001:db8:100::200\", \"addrType\": 0, \"customConfig\": null}}},"
 "{\"bridgeInfo\": {\"networkBridgeType\": 0, \"userBridgeCategory\": 3, \"alias\": \"br-hotspot\", \"stpEnable\": 0, \"igdEnable\": 0, \"bridgeLifeTime\": -1, \"bridgeName\": \"br1an2\"},"
-"\"dhcpConfig\": {\"dhcpv4Config\": {\"Dhcpv4_Enable\": true, \"Dhcpv4_Start_Addr\": \"172.168.0.2\", \"Dhcpv4_End_Addr\": \"172.168.0.200\", \"Dhcpv4_Lease_Time\": 43200},"
+"\"dhcpConfig\": {\"dhcpv4Config\": {\"Dhcpv4_Enable\": true, \"Dhcpv4_Start_Addr\": \"172.168.0.2\", \"Dhcpv4_End_Addr\": \"172.168.0.200\", \"Dhcpv4_Lease_Time\": 43200, \"Dhcpv4_Subnet\": \"255.255.255.0\"},"
 "\"dhcpv6Config\": {\"Ipv6Prefix\": \"2001:db8:100::/64\", \"StateFull\": true, \"StateLess\": false, \"Dhcpv6_Start_Addr\": \"2001:db8:100::20\", \"Dhcpv6_End_Addr\": \"2001:db8:100::200\", \"addrType\": 0, \"customConfig\": null}}}"
 "]}";
 

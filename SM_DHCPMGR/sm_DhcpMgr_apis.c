@@ -2,6 +2,16 @@
 #include <cjson/cJSON.h>
 #include "dhcpmgr_rbus_apis.h"
 
+const char* DhcpManagersState_Names[]={
+    "DHCPS_STATE_IDLE",
+    "DHCPS_STATE_PREPARINGv4",
+    "DHCPS_STATE_STARTINGv4",
+    "DHCPS_STATE_STOPPINGv4",
+    "DHCPS_STATE_PREPARINGv6",
+    "DHCPS_STATE_STARTINGv6",
+    "DHCPS_STATE_STOPPINGv6"
+};
+
 const char *json_input = "{\
   \"num_entries\": 3,\
   \"dhcpPayload\": [\
@@ -93,6 +103,13 @@ const char *json_input = "{\
 }";
 //stub function to simulate fetching LAN configurations
 
+void GetDhcpStateName(DHCPS_State state, char *stateName, size_t nameSize) {
+    if (state >= 0 && state < sizeof(DhcpManagersState_Names)/sizeof(DhcpManagersState_Names[0])) {
+        snprintf(stateName, nameSize, "%s", DhcpManagersState_Names[state]);
+    } else {
+        snprintf(stateName, nameSize, "UNKNOWN_STATE");
+    }
+}
 
 int parseDhcpPayloadJson(const char *json, DhcpPayload *payloads, int *count) {
     cJSON *root = cJSON_Parse(json);
@@ -122,6 +139,7 @@ int parseDhcpPayloadJson(const char *json, DhcpPayload *payloads, int *count) {
         strcpy(payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Start_Addr")->valuestring);
         strcpy(payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_End_Addr, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_End_Addr")->valuestring);
         payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Lease_Time = cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Lease_Time")->valueint;
+        strcpy(payloads[i].dhcpConfig.dhcpv4Config.Subnet_Mask, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Subnet")->valuestring);
 
         cJSON *dhcpv6 = cJSON_GetObjectItem(dhcpConfig, "dhcpv6Config");
         strcpy(payloads[i].dhcpConfig.dhcpv6Config.Ipv6Prefix, cJSON_GetObjectItem(dhcpv6, "Ipv6Prefix")->valuestring);
@@ -145,6 +163,7 @@ void printLanDHCPConfig(DhcpPayload *lanConfigs, int LanConfig_count) {
             printf("  DHCPv4 Start Address: %s\n", lanConfigs[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr);
             printf("  DHCPv4 End Address: %s\n", lanConfigs[i].dhcpConfig.dhcpv4Config.Dhcpv4_End_Addr);
             printf("  DHCPv4 Lease Time: %d seconds\n", lanConfigs[i].dhcpConfig.dhcpv4Config.Dhcpv4_Lease_Time);
+            printf("  DHCPv4 Subnet Mask: %s\n", lanConfigs[i].dhcpConfig.dhcpv4Config.Subnet_Mask);
         }
         printf("  DHCPv6 Prefix: %s\n", lanConfigs[i].dhcpConfig.dhcpv6Config.Ipv6Prefix);
         printf("  DHCPv6 Stateful: %s\n", lanConfigs[i].dhcpConfig.dhcpv6Config.StateFull ? "Yes" : "No");
@@ -186,9 +205,21 @@ void Add_inf_to_dhcp_config(DhcpPayload *pLanConfig, int numOfLanConfigs, DhcpIn
         if (pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_Enable)
         {
             snprintf(ppHeadDhcpIf[i]->sAddressPool.cStartAddress, sizeof(ppHeadDhcpIf[i]->sAddressPool.cStartAddress), "%s", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr);
+            printf("Source Start Address: %s\n", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr);
+            snprintf(ppHeadDhcpIf[i]->sAddressPool.cStartAddress, sizeof(ppHeadDhcpIf[i]->sAddressPool.cStartAddress), "%s", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr);
+            printf("Copied Start Address: %s\n", ppHeadDhcpIf[i]->sAddressPool.cStartAddress);
+
+            printf("Source End Address: %s\n", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_End_Addr);
             snprintf(ppHeadDhcpIf[i]->sAddressPool.cEndAddress, sizeof(ppHeadDhcpIf[i]->sAddressPool.cEndAddress), "%s", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_End_Addr);
+            printf("Copied End Address: %s\n", ppHeadDhcpIf[i]->sAddressPool.cEndAddress);
+
+            printf("Source Subnet Mask: %s\n", pLanConfig[i].dhcpConfig.dhcpv4Config.Subnet_Mask);
             snprintf(ppHeadDhcpIf[i]->cSubnetMask, sizeof(ppHeadDhcpIf[i]->cSubnetMask), "%s", pLanConfig[i].dhcpConfig.dhcpv4Config.Subnet_Mask);
+            printf("Copied Subnet Mask: %s\n", ppHeadDhcpIf[i]->cSubnetMask);
+
+            printf("Source Lease Duration: %d\n", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_Lease_Time);
             snprintf(ppHeadDhcpIf[i]->cLeaseDuration, sizeof(ppHeadDhcpIf[i]->cLeaseDuration), "%d", pLanConfig[i].dhcpConfig.dhcpv4Config.Dhcpv4_Lease_Time);
+            printf("Copied Lease Duration: %s\n", ppHeadDhcpIf[i]->cLeaseDuration);
         }
     }
 }
@@ -217,11 +248,72 @@ int Construct_dhcp_configurationv4(char * dhcpOptions, char * dnsonly)
 {
     if (dnsonly == NULL)     
     {
-        strcpy(dhcpOptions, "-q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C /var/dnsmasq.conf --dhcp-authoritative --stop-dns-rebind --log-facility=/home/aadhithan/Desktop/aadhi/DHCP_MGR/dnsmasq.log");
+        strcpy(dhcpOptions, "-q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C /var/dnsmasq.conf --dhcp-authoritative --stop-dns-rebind --log-facility=/home/aadhithan/Desktop/aadhi/dnsmasq.log");
     }
     else if(strcmp(dnsonly, "true") == 0)
     {
-        strcpy(dhcpOptions, " -P 4096 -C /var/dnsmasq.conf --log-facility=/home/aadhithan/Desktop/aadhi/DHCP_MGR/dnsmasq.log");
+        strcpy(dhcpOptions, " -P 4096 -C /var/dnsmasq.conf --log-facility=/home/aadhithan/Desktop/aadhi/dnsmasq.log");
+    }
+    return 0;
+}
+
+int dhcp_server_publish_state(DHCPS_State state)
+{
+    printf("%s %d: rbus publish state called with state %d\n",__FUNCTION__, __LINE__, state);
+    char stateStr[16] = {0};
+    char paramName[20] = {0};
+
+    switch(state)
+    {
+        case DHCPS_STATE_IDLE:
+            snprintf(stateStr, sizeof(stateStr), "Idle");
+            snprintf(paramName,sizeof(paramName),"DHCP_server_state");
+            break;
+        case DHCPS_STATE_PREPARINGv4:
+            GetDhcpStateName(state, stateStr, sizeof(stateStr));
+            snprintf(paramName,sizeof(paramName),"DHCP_server_v4");
+            break;
+        case DHCPS_STATE_STARTINGv4:
+            GetDhcpStateName(state, stateStr, sizeof(stateStr));
+            snprintf(paramName,sizeof(paramName),"DHCP_server_v4");
+            break;
+        case DHCPS_STATE_STOPPINGv4:
+            GetDhcpStateName(state, stateStr, sizeof(stateStr));
+            snprintf(paramName,sizeof(paramName),"DHCP_server_v4");
+            break;
+        case DHCPS_STATE_PREPARINGv6:
+            GetDhcpStateName(state, stateStr, sizeof(stateStr));
+            snprintf(paramName,sizeof(paramName),"DHCP_server_v6");
+            break;
+        case DHCPS_STATE_STARTINGv6:
+            GetDhcpStateName(state, stateStr, sizeof(stateStr));
+            snprintf(paramName,sizeof(paramName),"DHCP_server_v6");
+            break;
+        case DHCPS_STATE_STOPPINGv6:
+            GetDhcpStateName(state, stateStr, sizeof(stateStr));
+            snprintf(paramName,sizeof(paramName),"DHCP_server_v6");
+            break;
+        default:
+            snprintf(stateStr, sizeof(stateStr), "Unknown");
+            snprintf(paramName,sizeof(paramName),"DHCP_server_state");
+            break;
+    }
+
+    if (DhcpMgr_Publish_Events(stateStr, paramName, DHCPMGR_SERVER_STATE) != 0)
+    {
+        printf("%s %d: Failed to publish state %s\n",__FUNCTION__, __LINE__, stateStr);
+        return -1;
+    }
+
+    return 0;
+}
+
+int dhcp_server_signal_state_machine_ready()
+{
+    if (DhcpMgr_Publish_Events("Ready", "DHCP_Server_state", DHCPMGR_SERVER_READY) != 0)
+    {
+        printf("%s %d: Failed to signal state machine ready\n",__FUNCTION__, __LINE__);
+        return -1;
     }
     return 0;
 }

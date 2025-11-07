@@ -1,12 +1,30 @@
 #include "dhcpmgr_rbus_apis.h"
+#include <mqueue.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
 
 
 #define  MAC_ADDR_SIZE 18
 #define  ARRAY_SZ(x) (sizeof(x) / sizeof((x)[0]))
 static rbusHandle_t rbusHandle;
+
+typedef enum {
+    DM_EVENT_STARTv4,
+    DM_EVENT_RESTARTv4,
+    DM_EVENT_CONF_CHANGEDv4,
+    DM_EVENT_STOPv4,
+    DM_EVENT_STARTv6,
+    DM_EVENT_RESTARTv6,
+    DM_EVENT_CONF_CHANGEDv6,
+    DM_EVENT_STOPv6
+} DhcpMgr_DispatchEvent;
+
 char *componentName = "DHCPMANAGER";
 
-static rbusError_t DhcpMgr_Publish_Events(char *statestr,char * paramName,char * eventName)
+rbusError_t DhcpMgr_Publish_Events(char *statestr,char * paramName,char * eventName)
 {
     if(statestr == NULL)
     {
@@ -45,67 +63,6 @@ static rbusError_t DhcpMgr_Publish_Events(char *statestr,char * paramName,char *
     rbusObject_Release(rdata);
 
     return rc;
-}
-
-int dhcp_server_publish_state(DHCPS_State state)
-{
-    printf("%s %d: rbus publish state called with state %d\n",__FUNCTION__, __LINE__, state);
-    char stateStr[16] = {0};
-    char paramName[20] = {0};
-
-    switch(state)
-    {
-        case DHCPS_STATE_IDLE:
-            snprintf(stateStr, sizeof(stateStr), "Idle");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_state");
-            break;
-        case DHCPS_STATE_PREPARINGv4:
-            snprintf(stateStr, sizeof(stateStr), "Preparingv4");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_v4");
-            break;
-        case DHCPS_STATE_STARTINGv4:
-            snprintf(stateStr, sizeof(stateStr), "Startingv4");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_v4");
-            break;
-        case DHCPS_STATE_STOPPINGv4:
-            snprintf(stateStr, sizeof(stateStr), "Stoppingv4");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_v4");
-            break;
-        case DHCPS_STATE_PREPARINGv6:
-            snprintf(stateStr, sizeof(stateStr), "Preparingv6");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_v6");
-            break;
-        case DHCPS_STATE_STARTINGv6:
-            snprintf(stateStr, sizeof(stateStr), "Startingv6");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_v6");
-            break;
-        case DHCPS_STATE_STOPPINGv6:
-            snprintf(stateStr, sizeof(stateStr), "Stoppingv6");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_v6");
-            break;
-        default:
-            snprintf(stateStr, sizeof(stateStr), "Unknown");
-            snprintf(paramName,sizeof(paramName),"DHCP_server_state");
-            break;
-    }
-
-    if (DhcpMgr_Publish_Events(stateStr, paramName, DHCPMGR_SERVER_STATE) != 0)
-    {
-        printf("%s %d: Failed to publish state %s\n",__FUNCTION__, __LINE__, stateStr);
-        return -1;
-    }
-
-    return 0;
-}
-
-int dhcp_server_signal_state_machine_ready()
-{
-    if (DhcpMgr_Publish_Events("Ready", "DHCP_Server_state", DHCPMGR_SERVER_READY) != 0)
-    {
-        printf("%s %d: Failed to signal state machine ready\n",__FUNCTION__, __LINE__);
-        return -1;
-    }
-    return 0;
 }
 
 int rbus_GetLanDHCPConfig(const char** payload)
@@ -151,19 +108,64 @@ rbusError_t DhcpMgr_Event_SetHandler(rbusHandle_t handle, rbusProperty_t propert
     rbusValue_t paramValue = rbusProperty_GetValue(property);
     const char* paramValueStr = rbusValue_GetString(paramValue, NULL);
 
+    DhcpMgr_DispatchEvent mq_event = -1;
+
     if (strcmp(paramName, "Device.DHCP.Server.v4.Event") == 0 && strcmp(paramValueStr, "start") == 0)
     {
         printf("%s %d: Parameter is 'Device.DHCP.Server.v4.Event' and value is 'start'\n", __FUNCTION__, __LINE__);
-        EventHandler_MainFSM(DM_EVENT_STARTv4);
+        mq_event = DM_EVENT_STARTv4; /* map to DhcpManagerEvent */
     }
     else if (strcmp(paramName, "Device.DHCP.Server.v4.Event") == 0 && strcmp(paramValueStr, "stop") == 0)
     {
         printf("%s %d: Parameter is 'Device.DHCP.Server.v4.Event' and value is 'stop'\n", __FUNCTION__, __LINE__);
-        EventHandler_MainFSM(DM_EVENT_STOPv4);
+        mq_event = DM_EVENT_STOPv4; /* map to DhcpManagerEvent */
+    }
+    else if (strcmp(paramName, "Device.DHCP.Server.v4.Event") == 0 && strcmp(paramValueStr, "restart") == 0)
+    {
+        printf("%s %d: Parameter is 'Device.DHCP.Server.v4.Event' and value is 'restart'\n", __FUNCTION__, __LINE__);
+        mq_event = DM_EVENT_RESTARTv4; /* map to DhcpManagerEvent */
     }
     else
     {
         printf("%s %d: Parameter or value did not match\n", __FUNCTION__, __LINE__);
+    }
+
+    /* If we mapped an event, send it over the POSIX message queue to the state machine. */
+    if (mq_event >= 0) {
+        mqd_t mq = mq_open(MQ_NAME, O_WRONLY);
+        if (mq == (mqd_t)-1) {
+            /* queue not available - try to create it */
+            if (errno == ENOENT) {
+                struct mq_attr attr;
+                attr.mq_flags = 0;
+                attr.mq_maxmsg = 10;
+                attr.mq_msgsize = sizeof(DhcpMgr_DispatchEvent);
+                attr.mq_curmsgs = 0;
+
+                mq = mq_open(MQ_NAME, O_CREAT | O_WRONLY, 0666, &attr);
+                if (mq == (mqd_t)-1) {
+                    perror("mq_open (create)");
+                    printf("%s %d: Failed to create MQ '%s' to send event %d\n", __FUNCTION__, __LINE__, MQ_NAME, mq_event);
+                    return RBUS_ERROR_BUS_ERROR;
+                }
+            } else {
+                perror("mq_open");
+                printf("%s %d: Failed to open MQ '%s' to send event %d (errno=%d)\n", __FUNCTION__, __LINE__, MQ_NAME, mq_event, errno);
+                return RBUS_ERROR_BUS_ERROR;
+            }
+        }
+
+        if (mq_send(mq, (const char*)&mq_event, sizeof(mq_event), 0) == -1) {
+            int errsv = errno;
+            perror("mq_send");
+            printf("%s %d: mq_send failed with errno %d sending event %d to %s\n", __FUNCTION__, __LINE__, errsv, mq_event, MQ_NAME);
+            mq_close(mq);
+            return RBUS_ERROR_BUS_ERROR;
+        }
+
+        printf("%s %d: Sent event %d to MQ %s\n", __FUNCTION__, __LINE__, mq_event, MQ_NAME);
+        mq_close(mq);
+        return RBUS_ERROR_SUCCESS;
     }
 
     return RBUS_ERROR_SUCCESS;

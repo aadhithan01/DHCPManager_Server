@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mqueue.h>
+
+#define SM_MQ_NAME "/lan_fsm_queue"
+#define MQ_NAME    "/lan_sm_queue"
 
 typedef int (*ActionHandler)(void *payload);
 
@@ -52,6 +56,7 @@ typedef enum {
     DM_EVENT_CONF_CHANGEDv6,
     DM_EVENT_STOPv6
 } DhcpMgr_DispatchEvent;
+
 
 
 // STUB Structure
@@ -138,6 +143,13 @@ void AllocateDhcpInterfaceConfig(DhcpInterfaceConfig ***ppDhcpCfgs, int LanConfi
 void Add_inf_to_dhcp_config(DhcpPayload *pLanConfig, int numOfLanConfigs, DhcpInterfaceConfig **ppHeadDhcpIf, int pDhcpIfacesCount);
 void dns_only();
 int EventHandler_MainFSM(DhcpMgr_DispatchEvent event);
+void* FSM_Dispatch_Thread(void* arg);
+void *FSMThread(void *arg);
+int dhcp_server_publish_state(DHCPS_State state);
+int dhcp_server_signal_state_machine_ready(void);
+/* Global MQ descriptors (defined/initialised in main program) */
+extern mqd_t mq_dispatch; /* corresponds to MQ_NAME (dispatch queue) */
+extern mqd_t mq_fsm;      /* corresponds to SM_MQ_NAME (fsm actions queue) */
 // STUB Struct Ends HERE
 
 #endif

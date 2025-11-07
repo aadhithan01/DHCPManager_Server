@@ -1,39 +1,59 @@
-# Makefile for CcspDHCPMgr
+# Makefile to build the CcspDhcpMgr binary and ensure local libraries are built
 
 # Compiler
-CC = gcc
+CC ?= gcc
 
-# Compiler flags
-CFLAGS = -Wall -Wextra -I/usr/local/include -I/usr/local/include/cjson -I/usr/include/cjson
+# Compiler flags (adjust include paths as needed)
+CFLAGS ?= -Wall -Wextra -O2 -I. -I./DHCP_RBUS_COM -I./SM_DHCPMGR -I./Target_Layer
 
-# Linker flags
-LDFLAGS = -L/usr/local/lib -lcjson -lrbus
+# Linker flags and libraries
+# LIBPATHS points to the local lib directories produced by the subcomponents
+LIBPATHS := -L$(CURDIR)/DHCP_RBUS_COM -L$(CURDIR)/SM_DHCPMGR -L$(CURDIR)/Target_Layer
+LDLIBS := -ldhcpmgr_rbus -lsm_dhcpmgr -ldhcp_server_v4 -lrbus -lcjson -lrt -lpthread
 
-# Source files
-SRCS = dhcp_server_v4_apis.c sm_DhcpMgr_apis.c sm_DhcpMgr.c dhcpmgr_rbus_apis.c
+# Source and target
+SRCS := CcspDHCPMgr.c
+TARGET := CcspDhcpMgr
+OBJS := $(SRCS:.c=.o)
 
-# Header files
-HDRS = dhcp_server_v4_apis.h sm_DhcpMgr.h dhcpmgr_rbus_apis.h
+# Sub-projects that produce libraries
+SUBDIRS := DHCP_RBUS_COM SM_DHCPMGR Target_Layer
 
-# Output binary
-TARGET = CcspDHCPMgr
+.PHONY: all libs clean distclean
 
-# Object files
-OBJS = $(SRCS:.c=.o)
+all: libs $(TARGET)
 
-# Default target
-all: $(TARGET)
+# Ensure sub-project libraries are built first
+libs:
+	@for d in $(SUBDIRS); do \
+		if [ -f $$d/Makefile ]; then \
+			$(MAKE) -C $$d || exit 1; \
+		else \
+			echo "Warning: $$d/Makefile not found, skipping"; \
+		fi; \
+	done
 
-# Link object files to create the binary
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBPATHS) $(LDLIBS)
 
-# Compile source files into object files
-%.o: %.c $(HDRS)
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean up build artifacts
 clean:
-	rm -f $(OBJS) $(TARGET)
+	-rm -f $(OBJS) $(TARGET)
+	@for d in $(SUBDIRS); do \
+		if [ -f $$d/Makefile ]; then \
+			$(MAKE) -C $$d clean || true; \
+		fi; \
+	done
 
-.PHONY: all clean
+distclean: clean
+	@for d in $(SUBDIRS); do \
+		if [ -f $$d/Makefile ]; then \
+			$(MAKE) -C $$d distclean || true; \
+		fi; \
+	done
+
+# Notes:
+# - Ensure rbus and cjson development libraries/headers are installed or adjust CFLAGS/LDFLAGS.
+# - If libraries are installed in non-standard locations, set LD_LIBRARY_PATH or adjust LIBPATHS.

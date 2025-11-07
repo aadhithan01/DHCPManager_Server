@@ -16,7 +16,7 @@ FILE* fopen_wrapper(const char *path, const char *mode)
     FILE *file = fopen(path, mode);
     // You can add any additional logic here after calling fopen
     return file;
-}
+} 
 static int executeCmd(char *pCmd)
 {
     int iSystemRes;
@@ -214,7 +214,7 @@ bool dhcpServerInit(const GlobalDhcpConfig *pGlobalConfig, DhcpInterfaceConfig *
         }
     }
     // Hardcoded DHCP configurations
-    fprintf(fpLocalDhcpConf, "dhcp-leasefile=/home/aadhithan/Desktop/aadhi/DHCP_MGR/dnsmasq.leases\n");
+    fprintf(fpLocalDhcpConf, "dhcp-leasefile=/home/aadhithan/Desktop/aadhi/dnsmasq.leases\n");
     fprintf(fpLocalDhcpConf, "dhcp-hostsfile=/etc/dhcp_static_hosts\n");
     fprintf(fpLocalDhcpConf, "dhcp-optsfile=/var/dhcp_options\n");
     fprintf(fpLocalDhcpConf, "dhcp-option=vendor:Plume,43,tag=123\n");
