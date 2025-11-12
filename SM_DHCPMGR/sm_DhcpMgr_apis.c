@@ -248,11 +248,11 @@ int Construct_dhcp_configurationv4(char * dhcpOptions, char * dnsonly)
 {
     if (dnsonly == NULL)     
     {
-        strcpy(dhcpOptions, "-q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C /var/dnsmasq.conf --dhcp-authoritative --stop-dns-rebind --log-facility=/home/aadhithan/Desktop/aadhi/dnsmasq.log");
+        strcpy(dhcpOptions, "-q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C /var/dnsmasq.conf --dhcp-authoritative --stop-dns-rebind --log-facility=/tmp/dnsmasq.log");
     }
     else if(strcmp(dnsonly, "true") == 0)
     {
-        strcpy(dhcpOptions, " -P 4096 -C /var/dnsmasq.conf --log-facility=/home/aadhithan/Desktop/aadhi/dnsmasq.log");
+        strcpy(dhcpOptions, " -P 4096 -C /var/dnsmasq.conf --log-facility=/tmp/dnsmasq.log");
     }
     return 0;
 }

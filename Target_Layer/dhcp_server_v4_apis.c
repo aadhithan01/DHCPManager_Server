@@ -214,7 +214,7 @@ bool dhcpServerInit(const GlobalDhcpConfig *pGlobalConfig, DhcpInterfaceConfig *
         }
     }
     // Hardcoded DHCP configurations
-    fprintf(fpLocalDhcpConf, "dhcp-leasefile=/home/aadhithan/Desktop/aadhi/dnsmasq.leases\n");
+    fprintf(fpLocalDhcpConf, "dhcp-leasefile=/tmp/dnsmasq.leases\n");
     fprintf(fpLocalDhcpConf, "dhcp-hostsfile=/etc/dhcp_static_hosts\n");
     fprintf(fpLocalDhcpConf, "dhcp-optsfile=/var/dhcp_options\n");
     fprintf(fpLocalDhcpConf, "dhcp-option=vendor:Plume,43,tag=123\n");
