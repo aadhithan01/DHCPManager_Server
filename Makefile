@@ -53,7 +53,21 @@ distclean: clean
 			$(MAKE) -C $$d distclean || true; \
 		fi; \
 	done
-
+# Install all shared libraries to /usr/local/lib
+install:
+	@echo "Installing shared libraries to /usr/local/lib..."
+	@for d in $(SUBDIRS); do \
+		if [ -d $$d ]; then \
+			find $$d -maxdepth 1 -type f -name "*.so" -exec sudo cp -f {} /usr/local/lib/ \; ; \
+		fi; \
+	done
+	@if [ -f ./libdhcpmgr_rbus.so ]; then \
+		echo "Installing libdhcpmgr_rbus.so..."; \
+		sudo cp -f ./libdhcpmgr_rbus.so /usr/local/lib/; \
+	fi
+	@echo "Updating library cache..."
+	@sudo ldconfig
+	@echo "✅ Installation complete."
 # Notes:
 # - Ensure rbus and cjson development libraries/headers are installed or adjust CFLAGS/LDFLAGS.
 # - If libraries are installed in non-standard locations, set LD_LIBRARY_PATH or adjust LIBPATHS.
