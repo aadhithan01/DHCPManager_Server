@@ -110,48 +110,77 @@ void GetDhcpStateName(DHCPS_State state, char *stateName, size_t nameSize) {
         snprintf(stateName, nameSize, "UNKNOWN_STATE");
     }
 }
-
 int parseDhcpPayloadJson(const char *json, DhcpPayload *payloads, int *count) {
+    printf("%s %d parseDhcpPayloadJson Enters \n", __FUNCTION__, __LINE__);
     cJSON *root = cJSON_Parse(json);
     if (!root) {
-        printf("Failed to parse JSON\n");
+        printf("%s %d Failed to parse JSON\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
-    *count = cJSON_GetObjectItem(root, "num_entries")->valueint;
+    printf("%s %d JSON parsed successfully\n", __FUNCTION__, __LINE__);
+    cJSON *numEntries = cJSON_GetObjectItem(root, "num_entries");
+    if (!numEntries || !cJSON_IsNumber(numEntries)) {
+        printf("%s %d Invalid or missing num_entries\n", __FUNCTION__, __LINE__);
+        cJSON_Delete(root);
+        return -1;
+    }
+    *count = numEntries->valueint;
+    printf("%s %d Number of entries: %d\n", __FUNCTION__, __LINE__, *count);
+
     cJSON *array = cJSON_GetObjectItem(root, "dhcpPayload");
+    if (!array || !cJSON_IsArray(array)) {
+        printf("%s %d Invalid or missing dhcpPayload array\n", __FUNCTION__, __LINE__);
+        cJSON_Delete(root);
+        return -1;
+    }
+    printf("%s %d Retrieved dhcpPayload array\n", __FUNCTION__, __LINE__);
 
     for (int i = 0; i < *count; i++) {
+        printf("%s %d Processing entry %d\n", __FUNCTION__, __LINE__, i);
         cJSON *item = cJSON_GetArrayItem(array, i);
+        if (!item) {
+            printf("%s %d Missing entry at index %d\n", __FUNCTION__, __LINE__, i);
+            continue;
+        }
+
         cJSON *bridgeInfo = cJSON_GetObjectItem(item, "bridgeInfo");
+        if (bridgeInfo) {
+            payloads[i].bridgeInfo.networkBridgeType = cJSON_GetObjectItem(bridgeInfo, "networkBridgeType") ? cJSON_GetObjectItem(bridgeInfo, "networkBridgeType")->valueint : 0;
+            payloads[i].bridgeInfo.userBridgeCategory = cJSON_GetObjectItem(bridgeInfo, "userBridgeCategory") ? cJSON_GetObjectItem(bridgeInfo, "userBridgeCategory")->valueint : 0;
+            strcpy(payloads[i].bridgeInfo.alias, cJSON_GetObjectItem(bridgeInfo, "alias") ? cJSON_GetObjectItem(bridgeInfo, "alias")->valuestring : "");
+            payloads[i].bridgeInfo.stpEnable = cJSON_GetObjectItem(bridgeInfo, "stpEnable") ? cJSON_GetObjectItem(bridgeInfo, "stpEnable")->valueint : 0;
+            payloads[i].bridgeInfo.igdEnable = cJSON_GetObjectItem(bridgeInfo, "igdEnable") ? cJSON_GetObjectItem(bridgeInfo, "igdEnable")->valueint : 0;
+            payloads[i].bridgeInfo.bridgeLifeTime = cJSON_GetObjectItem(bridgeInfo, "bridgeLifeTime") ? cJSON_GetObjectItem(bridgeInfo, "bridgeLifeTime")->valueint : 0;
+            strcpy(payloads[i].bridgeInfo.bridgeName, cJSON_GetObjectItem(bridgeInfo, "bridgeName") ? cJSON_GetObjectItem(bridgeInfo, "bridgeName")->valuestring : "");
+        }
+
         cJSON *dhcpConfig = cJSON_GetObjectItem(item, "dhcpConfig");
+        if (dhcpConfig) {
+            cJSON *dhcpv4 = cJSON_GetObjectItem(dhcpConfig, "dhcpv4Config");
+            if (dhcpv4) {
+                payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Enable = cJSON_IsTrue(cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Enable"));
+                strcpy(payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Start_Addr") ? cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Start_Addr")->valuestring : "");
+                strcpy(payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_End_Addr, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_End_Addr") ? cJSON_GetObjectItem(dhcpv4, "Dhcpv4_End_Addr")->valuestring : "");
+                payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Lease_Time = cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Lease_Time") ? cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Lease_Time")->valueint : 0;
+                strcpy(payloads[i].dhcpConfig.dhcpv4Config.Subnet_Mask, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Subnet") ? cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Subnet")->valuestring : "");
+            }
 
-        payloads[i].bridgeInfo.networkBridgeType = cJSON_GetObjectItem(bridgeInfo, "networkBridgeType")->valueint;
-        payloads[i].bridgeInfo.userBridgeCategory = cJSON_GetObjectItem(bridgeInfo, "userBridgeCategory")->valueint;
-        strcpy(payloads[i].bridgeInfo.alias, cJSON_GetObjectItem(bridgeInfo, "alias")->valuestring);
-        payloads[i].bridgeInfo.stpEnable = cJSON_GetObjectItem(bridgeInfo, "stpEnable")->valueint;
-        payloads[i].bridgeInfo.igdEnable = cJSON_GetObjectItem(bridgeInfo, "igdEnable")->valueint;
-        payloads[i].bridgeInfo.bridgeLifeTime = cJSON_GetObjectItem(bridgeInfo, "bridgeLifeTime")->valueint;
-        strcpy(payloads[i].bridgeInfo.bridgeName, cJSON_GetObjectItem(bridgeInfo, "bridgeName")->valuestring);
-
-        cJSON *dhcpv4 = cJSON_GetObjectItem(dhcpConfig, "dhcpv4Config");
-        payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Enable = cJSON_IsTrue(cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Enable"));
-        strcpy(payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Start_Addr, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Start_Addr")->valuestring);
-        strcpy(payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_End_Addr, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_End_Addr")->valuestring);
-        payloads[i].dhcpConfig.dhcpv4Config.Dhcpv4_Lease_Time = cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Lease_Time")->valueint;
-        strcpy(payloads[i].dhcpConfig.dhcpv4Config.Subnet_Mask, cJSON_GetObjectItem(dhcpv4, "Dhcpv4_Subnet")->valuestring);
-
-        cJSON *dhcpv6 = cJSON_GetObjectItem(dhcpConfig, "dhcpv6Config");
-        strcpy(payloads[i].dhcpConfig.dhcpv6Config.Ipv6Prefix, cJSON_GetObjectItem(dhcpv6, "Ipv6Prefix")->valuestring);
-        payloads[i].dhcpConfig.dhcpv6Config.StateFull = cJSON_IsTrue(cJSON_GetObjectItem(dhcpv6, "StateFull"));
-        payloads[i].dhcpConfig.dhcpv6Config.StateLess = cJSON_IsTrue(cJSON_GetObjectItem(dhcpv6, "StateLess"));
-        strcpy(payloads[i].dhcpConfig.dhcpv6Config.Dhcpv6_Start_Addr, cJSON_GetObjectItem(dhcpv6, "Dhcpv6_Start_Addr")->valuestring);
-        strcpy(payloads[i].dhcpConfig.dhcpv6Config.Dhcpv6_End_Addr, cJSON_GetObjectItem(dhcpv6, "Dhcpv6_End_Addr")->valuestring);
-        payloads[i].dhcpConfig.dhcpv6Config.addrType = cJSON_GetObjectItem(dhcpv6, "addrType")->valueint;
-        payloads[i].dhcpConfig.dhcpv6Config.customConfig = NULL;
+            cJSON *dhcpv6 = cJSON_GetObjectItem(dhcpConfig, "dhcpv6Config");
+            if (dhcpv6) {
+                strcpy(payloads[i].dhcpConfig.dhcpv6Config.Ipv6Prefix, cJSON_GetObjectItem(dhcpv6, "Ipv6Prefix") ? cJSON_GetObjectItem(dhcpv6, "Ipv6Prefix")->valuestring : "");
+                payloads[i].dhcpConfig.dhcpv6Config.StateFull = cJSON_IsTrue(cJSON_GetObjectItem(dhcpv6, "StateFull"));
+                payloads[i].dhcpConfig.dhcpv6Config.StateLess = cJSON_IsTrue(cJSON_GetObjectItem(dhcpv6, "StateLess"));
+                strcpy(payloads[i].dhcpConfig.dhcpv6Config.Dhcpv6_Start_Addr, cJSON_GetObjectItem(dhcpv6, "Dhcpv6_Start_Addr") ? cJSON_GetObjectItem(dhcpv6, "Dhcpv6_Start_Addr")->valuestring : "");
+                strcpy(payloads[i].dhcpConfig.dhcpv6Config.Dhcpv6_End_Addr, cJSON_GetObjectItem(dhcpv6, "Dhcpv6_End_Addr") ? cJSON_GetObjectItem(dhcpv6, "Dhcpv6_End_Addr")->valuestring : "");
+                payloads[i].dhcpConfig.dhcpv6Config.addrType = cJSON_GetObjectItem(dhcpv6, "addrType") ? cJSON_GetObjectItem(dhcpv6, "addrType")->valueint : 0;
+                payloads[i].dhcpConfig.dhcpv6Config.customConfig = NULL;
+            }
+        }
     }
 
     cJSON_Delete(root);
+    printf("%s %d JSON parsing completed successfully\n", __FUNCTION__, __LINE__);
     return 0;
 }
 
