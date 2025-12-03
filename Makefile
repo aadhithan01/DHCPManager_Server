@@ -9,7 +9,7 @@ CFLAGS ?= -Wall -Wextra -O2 -I. -I./DHCP_RBUS_COM -I./SM_DHCPMGR -I./Target_Laye
 # Linker flags and libraries
 # LIBPATHS points to the local lib directories produced by the subcomponents
 LIBPATHS := -L$(CURDIR)/DHCP_RBUS_COM -L$(CURDIR)/SM_DHCPMGR -L$(CURDIR)/Target_Layer
-LDLIBS := -ldhcpmgr_rbus -lsm_dhcpmgr -ldhcp_server_v4 -lrbus -lcjson -lrt -lpthread
+LDLIBS := -ldhcpmgr_rbus -lsm_dhcpmgr -ldhcp_server_v4 -ldhcp_server_v6 -lrbus -lcjson -lrt -lpthread
 
 # Source and target
 SRCS := CcspDHCPMgr.c
