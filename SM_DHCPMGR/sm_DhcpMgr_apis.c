@@ -299,7 +299,7 @@ int Construct_dhcp_configurationv4(char * dhcpOptions, char * dnsonly)
 int dhcp_server_publish_state(DHCPS_State state)
 {
     printf("%s %d: rbus publish state called with state %d\n",__FUNCTION__, __LINE__, state);
-    char stateStr[16] = {0};
+    char stateStr[32] = {0};
     char paramName[20] = {0};
 
     switch(state)
