@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "dhcp_server_v4_apis.h"
+#include "dhcp_server_v6_apis.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -124,6 +125,12 @@ typedef struct {
     char Dhcpv6_Start_Addr[MAX_IP_LEN];  // Used only if StateFull is enabled
     char Dhcpv6_End_Addr[MAX_IP_LEN];    // Used only if StateFull is enabled
     IPv6AddrType addrType;               // Global or ULA addresses for clients
+    int  LeaseTime;                      // in seconds
+    int  RenewTime;                      // in seconds
+    int  RebindTime;                     // in seconds
+    int  ValidLifeTime;                  // in seconds
+    int  PreferredLifeTime;              // in seconds
+    int  num_options;                    // Number of custom options
     void *customConfig;                 // Pointer for future custom configurations --> PVD/FQDN etc 
 } DHCPV6Config;
 
@@ -147,6 +154,8 @@ void* FSM_Dispatch_Thread(void* arg);
 void *FSMThread(void *arg);
 int dhcp_server_publish_state(DHCPS_State state);
 int dhcp_server_signal_state_machine_ready(void);
+int check_ipv6_received(DhcpPayload *lanConfigs, int LanConfig_count, bool *statefull_enabled, bool *stateless_enabled);
+int create_dhcpsv6_config(DhcpPayload *lanConfigs,int LanConfig_count, bool statefull_enabled);
 /* Global MQ descriptors (defined/initialised in main program) */
 extern mqd_t mq_dispatch; /* corresponds to MQ_NAME (dispatch queue) */
 extern mqd_t mq_fsm;      /* corresponds to SM_MQ_NAME (fsm actions queue) */

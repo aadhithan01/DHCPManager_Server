@@ -174,6 +174,11 @@ int parseDhcpPayloadJson(const char *json, DhcpPayload *payloads, int *count) {
                 strcpy(payloads[i].dhcpConfig.dhcpv6Config.Dhcpv6_Start_Addr, cJSON_GetObjectItem(dhcpv6, "Dhcpv6_Start_Addr") ? cJSON_GetObjectItem(dhcpv6, "Dhcpv6_Start_Addr")->valuestring : "");
                 strcpy(payloads[i].dhcpConfig.dhcpv6Config.Dhcpv6_End_Addr, cJSON_GetObjectItem(dhcpv6, "Dhcpv6_End_Addr") ? cJSON_GetObjectItem(dhcpv6, "Dhcpv6_End_Addr")->valuestring : "");
                 payloads[i].dhcpConfig.dhcpv6Config.addrType = cJSON_GetObjectItem(dhcpv6, "addrType") ? cJSON_GetObjectItem(dhcpv6, "addrType")->valueint : 0;
+                payloads[i].dhcpConfig.dhcpv6Config.LeaseTime = cJSON_GetObjectItem(dhcpv6, "LeaseTime") ? cJSON_GetObjectItem(dhcpv6, "LeaseTime")->valueint : 0;
+                payloads[i].dhcpConfig.dhcpv6Config.RenewTime = cJSON_GetObjectItem(dhcpv6, "RenewTime") ? cJSON_GetObjectItem(dhcpv6, "RenewTime")->valueint : 0;  
+                payloads[i].dhcpConfig.dhcpv6Config.RebindTime = cJSON_GetObjectItem(dhcpv6, "RebindTime") ? cJSON_GetObjectItem(dhcpv6, "RebindTime")->valueint : 0;
+                payloads[i].dhcpConfig.dhcpv6Config.ValidLifeTime = cJSON_GetObjectItem(dhcpv6, "ValidLifeTime") ? cJSON_GetObjectItem(dhcpv6, "ValidLifeTime")->valueint : 0;
+                payloads[i].dhcpConfig.dhcpv6Config.PreferredLifeTime = cJSON_GetObjectItem(dhcpv6, "PreferredLifeTime") ? cJSON_GetObjectItem(dhcpv6, "PreferredLifeTime")->valueint : 0;
                 payloads[i].dhcpConfig.dhcpv6Config.customConfig = NULL;
             }
         }
@@ -200,6 +205,11 @@ void printLanDHCPConfig(DhcpPayload *lanConfigs, int LanConfig_count) {
         if (lanConfigs[i].dhcpConfig.dhcpv6Config.StateFull) {
             printf("  DHCPv6 Start Address: %s\n", lanConfigs[i].dhcpConfig.dhcpv6Config.Dhcpv6_Start_Addr);
             printf("  DHCPv6 End Address: %s\n", lanConfigs[i].dhcpConfig.dhcpv6Config.Dhcpv6_End_Addr);
+            printf("  DHCPv6 Address Type: %d\n", lanConfigs[i].dhcpConfig.dhcpv6Config.LeaseTime);
+            printf("  DHCPv6 Renew Time: %d\n", lanConfigs[i].dhcpConfig.dhcpv6Config.RenewTime);
+            printf("  DHCPv6 Rebind Time: %d\n", lanConfigs[i].dhcpConfig.dhcpv6Config.RebindTime);
+            printf("  DHCPv6 Valid Life Time: %d\n", lanConfigs[i].dhcpConfig.dhcpv6Config.ValidLifeTime);
+            printf("  DHCPv6 Preferred Life Time: %d\n", lanConfigs[i].dhcpConfig.dhcpv6Config.PreferredLifeTime);
         }
         printf("\n");
     }
@@ -392,3 +402,117 @@ void dns_only()
     //stub ends
 }
 
+int check_ipv6_received(DhcpPayload *lanConfigs, int LanConfig_count, bool *statefull_enabled, bool *stateless_enabled)
+{
+    IPv6Dhcpv6InterfaceConfig interface;
+
+    memset(&interface, 0, sizeof(IPv6Dhcpv6InterfaceConfig));
+    for (int i = 0; i < LanConfig_count; i++) {
+      if (strcmp(lanConfigs[i].bridgeInfo.bridgeName, "brlan0") == 0 &&
+        lanConfigs[i].dhcpConfig.dhcpv6Config.Ipv6Prefix[0] != '\0') 
+      {
+        *statefull_enabled = lanConfigs[i].dhcpConfig.dhcpv6Config.StateFull;
+        *stateless_enabled = lanConfigs[i].dhcpConfig.dhcpv6Config.StateLess;
+        return 0; // brlan0 has DHCPv6 enabled
+      }
+    }
+    return -1; // No interfaces with DHCPv6 enabled
+}
+
+int create_dhcpsv6_config(DhcpPayload *lanConfigs, int LanConfig_count, bool statefull_enabled)
+{
+    if (!statefull_enabled) {
+        printf("%s:%d Stateful DHCPv6 not enabled globally, nothing to do.\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    if (lanConfigs == NULL || LanConfig_count <= 0) {
+        printf("%s:%d Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    IPv6Dhcpv6InterfaceConfig *interfaces = calloc(LanConfig_count, sizeof(IPv6Dhcpv6InterfaceConfig));
+    if (!interfaces) {
+        printf("%s:%d Memory allocation failed\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    int configured_count = 0;
+    for (int i = 0; i < LanConfig_count; i++) {
+        /* Only configure interfaces that have stateful DHCPv6 enabled in the payload */
+        if (!lanConfigs[i].dhcpConfig.dhcpv6Config.StateFull)
+            continue;
+
+        IPv6Dhcpv6InterfaceConfig *iface = &interfaces[configured_count];
+        memset(iface, 0, sizeof(*iface));
+
+        /* Use bridgeName as interface name (fall back to alias if empty) */
+        if (lanConfigs[i].bridgeInfo.bridgeName[0] != '\0') {
+            snprintf(iface->interface_name, sizeof(iface->interface_name), "%s", lanConfigs[i].bridgeInfo.bridgeName);
+        } else {
+            snprintf(iface->interface_name, sizeof(iface->interface_name), "%s", lanConfigs[i].bridgeInfo.alias);
+        }
+
+        iface->server_type = DHCPV6_SERVER_TYPE_STATEFUL;
+        iface->enable_dhcp = true;
+        iface->iana_enable = 1;
+
+        /* Extract prefix length from Ipv6Prefix (e.g. "fd00:1:1::/64") */
+        char *prefix = lanConfigs[i].dhcpConfig.dhcpv6Config.Ipv6Prefix;
+        if (prefix && prefix[0] != '\0') {
+            char *slash = strchr(prefix, '/');
+            if (slash != NULL) {
+                iface->ipv6_prefix_length = atoi(slash + 1);
+            } else {
+                printf("%s:%d Invalid IPv6 prefix for %s, using /64\n", __FUNCTION__, __LINE__, iface->interface_name);
+                iface->ipv6_prefix_length = 64;
+            }
+        } else {
+            iface->ipv6_prefix_length = 64;
+        }
+
+        /* Address pool */
+        snprintf(iface->ipv6_address_pool.startAddress, sizeof(iface->ipv6_address_pool.startAddress),
+                 "%s", lanConfigs[i].dhcpConfig.dhcpv6Config.Dhcpv6_Start_Addr);
+        snprintf(iface->ipv6_address_pool.endAddress, sizeof(iface->ipv6_address_pool.endAddress),
+                 "%s", lanConfigs[i].dhcpConfig.dhcpv6Config.Dhcpv6_End_Addr);
+
+        iface->lease_time = lanConfigs[i].dhcpConfig.dhcpv6Config.LeaseTime;
+        iface->renew_time = lanConfigs[i].dhcpConfig.dhcpv6Config.RenewTime;
+        iface->rebind_time = lanConfigs[i].dhcpConfig.dhcpv6Config.RebindTime;
+        iface->valid_lifetime = lanConfigs[i].dhcpConfig.dhcpv6Config.ValidLifeTime;
+        iface->preferred_lifetime = lanConfigs[i].dhcpConfig.dhcpv6Config.PreferredLifeTime;
+
+        iface->log_level = 8;
+        iface->num_options = 0;
+        iface->rapid_enable = false;
+
+        printf("%s:%d Configured interface %s (start=%s end=%s prefixlen=%d)\n",
+               __FUNCTION__, __LINE__,
+               iface->interface_name, iface->ipv6_address_pool.startAddress,
+               iface->ipv6_address_pool.endAddress, iface->ipv6_prefix_length);
+
+        configured_count++;
+    }
+
+    if (configured_count == 0) {
+        printf("%s:%d No stateful DHCPv6 interfaces found in payload\n", __FUNCTION__, __LINE__);
+        free(interfaces);
+        return 0;
+    }
+
+    IPv6Dhcpv6ServerConfig config;
+    memset(&config, 0, sizeof(config));
+    config.interfaces = interfaces;
+    config.num_interfaces = configured_count;
+
+    int ret = dhcpv6_server_create(&config, DHCPV6_SERVER_TYPE_STATEFUL);
+    if (ret != 0) {
+        printf("%s:%d Failed to create DHCPv6 server configuration (ret=%d)\n", __FUNCTION__, __LINE__, ret);
+        free(interfaces);
+        return -1;
+    }
+
+    free(interfaces);
+    return 0;
+}

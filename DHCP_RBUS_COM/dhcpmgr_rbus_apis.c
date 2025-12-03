@@ -125,6 +125,21 @@ rbusError_t DhcpMgr_Event_SetHandler(rbusHandle_t handle, rbusProperty_t propert
         printf("%s %d: Parameter is 'Device.DHCP.Server.v4.Event' and value is 'restart'\n", __FUNCTION__, __LINE__);
         mq_event = DM_EVENT_RESTARTv4; /* map to DhcpManagerEvent */
     }
+    else if (strcmp(paramName, "Device.DHCP.Server.v6.Event") == 0 && strcmp(paramValueStr, "start") == 0)
+    {
+        printf("%s %d: Parameter is 'Device.DHCP.Server.v6.Event' and value is 'start'\n", __FUNCTION__, __LINE__);
+        mq_event = DM_EVENT_STARTv6; /* map to DhcpManagerEvent */
+    }
+    else if (strcmp(paramName, "Device.DHCP.Server.v6.Event") == 0 && strcmp(paramValueStr, "stop") == 0)
+    {
+        printf("%s %d: Parameter is 'Device.DHCP.Server.v6.Event' and value is 'stop'\n", __FUNCTION__, __LINE__);
+        mq_event = DM_EVENT_STOPv6; /* map to DhcpManagerEvent */
+    }
+    else if (strcmp(paramName, "Device.DHCP.Server.v6.Event") == 0 && strcmp(paramValueStr, "restart") == 0)
+    {
+        printf("%s %d: Parameter is 'Device.DHCP.Server.v6.Event' and value is 'restart'\n", __FUNCTION__, __LINE__);
+        mq_event = DM_EVENT_RESTARTv6; /* map to DhcpManagerEvent */
+    }
     else
     {
         printf("%s %d: Parameter or value did not match\n", __FUNCTION__, __LINE__);
@@ -173,7 +188,7 @@ rbusError_t DhcpMgr_Event_SetHandler(rbusHandle_t handle, rbusProperty_t propert
 
 rbusDataElement_t DhcpMgrRbusDataElements[] = {
     {DHCPMGR_SERVERv4_EVENT,  RBUS_ELEMENT_TYPE_PROPERTY, {NULL, DhcpMgr_Event_SetHandler, NULL, NULL, NULL, NULL}},
-    {DHCPMGR_SERVERv6_EVENT,  RBUS_ELEMENT_TYPE_PROPERTY, {NULL, NULL, NULL, NULL, NULL, NULL}},
+    {DHCPMGR_SERVERv6_EVENT,  RBUS_ELEMENT_TYPE_PROPERTY, {NULL, DhcpMgr_Event_SetHandler, NULL, NULL, NULL, NULL}},
     {DHCPMGR_SERVER_READY,    RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, NULL, NULL}},
     {DHCPMGR_SERVER_STATE,    RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, NULL, NULL}}
 };

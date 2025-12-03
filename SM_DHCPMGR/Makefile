@@ -14,10 +14,10 @@ CFLAGS ?= -O2 -fPIC -Wall -Wextra
 # Disable warn_unused_result warnings (e.g. from system/fgets marked warn_unused_result)
 CFLAGS += -Wno-unused-result
 LDFLAGS ?=
-# By default link against the Target_Layer library so symbols used from
-# dhcp_server_v4_apis.h are resolved at link time.
-# You can override or extend this on the make command line.
-LDFLAGS += -L../Target_Layer -ldhcp_server_v4
+# By default link against the Target_Layer libraries so symbols used from
+# dhcp_server_v*_apis.h are resolved at link time. You can override or
+# extend this on the make command line.
+LDFLAGS += -L../Target_Layer -ldhcp_server_v4 -ldhcp_server_v6
 
 # If you prefer to embed the static archive instead of linking the shared
 # library, call make with STATIC_EMBED=1 and the static lib will be

@@ -7,15 +7,17 @@
 #include <errno.h>
 #include <string.h>
 
+
+#define SERVER_BIN "dibbler-server"
+
 static DHCPS_State mainState = DHCPS_STATE_IDLE;
 
 int PrepareConfigv4s(void *payload);
 int Startv4s(void *payload);
-int Stopv4s();
-
-DhcpManagerEvent PrepareConfigv6s();
-DhcpManagerEvent Startv6s();
-DhcpManagerEvent Stopv6s();
+int Stopv4s(void *payload);
+int PrepareConfigv6s(void *payload);
+int Startv6s(void *payload);
+int Stopv6s(void *payload);
 
 GlobalDhcpConfig sGlbDhcpCfg;
 DhcpInterfaceConfig **ppDhcpCfgs;
@@ -47,7 +49,7 @@ DHCPS_SM_Mapping gSM_StateObj[] = {
     // -------------------- Stop v4 --------------------
     { DHCPS_STATE_IDLE, EVENT_STOPv4, DHCPS_STATE_STOPPINGv4, Stopv4s },
     { DHCPS_STATE_STOPPINGv4, EVENT_STOPPEDv4, DHCPS_STATE_IDLE, NULL },
-/*
+
     // -------------------- Start/Restart v6 --------------------
     { DHCPS_STATE_IDLE, EVENT_CONFIGUREv6, DHCPS_STATE_PREPARINGv6, PrepareConfigv6s },
     { DHCPS_STATE_PREPARINGv6, EVENT_CONFIG_CHANGEDv6, DHCPS_STATE_STARTINGv6, Startv6s },
@@ -56,7 +58,7 @@ DHCPS_SM_Mapping gSM_StateObj[] = {
 
     // -------------------- Stop v6 --------------------
     { DHCPS_STATE_IDLE, EVENT_STOPv6, DHCPS_STATE_STOPPINGv6, Stopv6s },
-    { DHCPS_STATE_STOPPINGv6, EVENT_STOPPEDv6, DHCPS_STATE_IDLE, NULL }, */
+    { DHCPS_STATE_STOPPINGv6, EVENT_STOPPEDv6, DHCPS_STATE_IDLE, NULL },
 
 };
 
@@ -107,6 +109,38 @@ void DispatchDHCP_SM(DhcpManagerEvent evt, void *payload) {
     }
 }
 
+int PrepareConfigv6s(void *payload) 
+{
+    (void)payload;
+    bool statefull_enabled = false;
+    bool stateless_enabled = false;
+    int LanConfig_count = 0;
+    DhcpPayload lanConfigs[MAX_IFACE_COUNT];
+    dhcp_server_publish_state(mainState);
+    GetLanDHCPConfig(lanConfigs, &LanConfig_count);
+    if (check_ipv6_received(lanConfigs, LanConfig_count, &statefull_enabled, &stateless_enabled) != 0) {
+        printf("%s:%d No brlan0 interface with DHCPv6 enabled. Skipping DHCPv6 configuration.\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    else
+    {
+        if (statefull_enabled)
+        {
+            printf("%s:%d Stateful DHCPv6 is enabled on brlan0.\n", __FUNCTION__, __LINE__);
+            //As of now its hardcoded to call create_dhcpsv6_config function for brlan0 only
+            int ret = create_dhcpsv6_config(lanConfigs, LanConfig_count, statefull_enabled);
+            if (ret != 0)
+            {
+                printf("%s:%d Failed to create DHCPv6 configuration.\n", __FUNCTION__, __LINE__);
+                return -1;
+            }
+        }
+    }
+    printf("%s:%d DHCPv6 configuration (stub) PREPARING Done !!!\n", __FUNCTION__, __LINE__);
+    PostEvent(EVENT_CONFIG_CHANGEDv6);
+    return 0;
+}
+
 int PrepareConfigv4s(void *payload) {
     (void)payload;
     char *dnsonly = Dns_only ? "true" : NULL;
@@ -115,7 +149,7 @@ int PrepareConfigv4s(void *payload) {
     char dhcpOptions[1024] = {0};
     DhcpPayload lanConfigs[MAX_IFACE_COUNT];
     bool serverInitstate = false;
-    dhcp_server_publish_state(DHCPS_STATE_PREPARINGv4);
+    dhcp_server_publish_state(mainState);
 
     // Stub function for fetching lanConfigs and LanConfig_count from somewhere
     GetLanDHCPConfig(lanConfigs, &LanConfig_count);
@@ -177,14 +211,35 @@ int Startv4s(void *payload) {
     return 0;
 }
 
-int Stopv4s() {
-    dhcp_server_publish_state(DHCPS_STATE_STOPPINGv4);
+int Stopv4s( void *payload) {
+    (void)payload;
+    dhcp_server_publish_state(mainState);
     dhcpServerStop(NULL, 0);
     Dns_only = true;
     printf("%s:%d DHCP Server Stopped successfully\n", __FUNCTION__, __LINE__);
     PostEvent(EVENT_STOPPEDv4);
-    dhcp_server_publish_state(DHCPS_STATE_IDLE);
+    dhcp_server_publish_state(mainState);
     PostEvent(EVENT_CONFIGUREv4);
+    return 0;
+}
+
+int Startv6s(void *payload) {
+    (void)payload;
+    dhcp_server_publish_state(mainState);
+    printf("%s:%d Starting DHCPv6 server\n", __FUNCTION__, __LINE__);
+    dhcpv6_server_start(SERVER_BIN, DHCPV6_SERVER_TYPE_STATEFUL);
+    PostEvent(EVENT_STARTEDv6);
+    dhcp_server_publish_state(mainState);
+    return 0;
+}
+
+int Stopv6s( void *payload) {
+    (void)payload;
+    dhcp_server_publish_state(mainState);
+    dhcpv6_server_stop(SERVER_BIN, DHCPV6_SERVER_TYPE_STATEFUL); // Using stateful to stop the server as a stub
+    PostEvent(EVENT_STOPPEDv6);
+    dhcp_server_publish_state(mainState);
+    printf("%s:%d Stopping DHCPv6 server\n", __FUNCTION__, __LINE__);
     return 0;
 }
 
